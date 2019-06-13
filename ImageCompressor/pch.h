@@ -10,5 +10,14 @@
 #define PCH_H
 
 // TODO: 添加要在此处预编译的标头
+#include <iostream>
+#include <string>
+#include <cstdint>
+#include <vector>
+#include <tuple>
+#include <algorithm>
+#include <queue>
+#include <cmath>
+#include <iomanip>
 
 #endif //PCH_H
