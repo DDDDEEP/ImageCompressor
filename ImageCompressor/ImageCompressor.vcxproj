@@ -152,11 +152,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="HuffmanTree.h" />
+    <ClInclude Include="ImageCompressor.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="WeightMap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="HuffmanTree.cpp" />
+    <ClCompile Include="ImageCompressor.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

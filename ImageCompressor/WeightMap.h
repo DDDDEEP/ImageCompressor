@@ -5,13 +5,15 @@
 class WeightMap
 {
 public:
-    WeightMap(const std::string &filapath);
+    WeightMap() : weights(256) {}
 
-    std::vector<unsigned int> getBytesCount();
+    void loadFile(const std::string &filepath);
+    std::vector<unsigned int> getBytesCount() const;
+    void setBytesCount(const std::vector<unsigned int> &counts);
+    std::vector<std::string> getCodes() const;
     void setCodes(const std::vector<std::string> &codes);
     void print();
-    void compress();
-    void decompress();
+
 private:
     // <出现次数, 编码值>
     std::vector<std::pair<unsigned int, std::string>> weights;

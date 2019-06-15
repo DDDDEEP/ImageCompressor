@@ -16,14 +16,19 @@ typedef HuffmanNode* HuffmanPtr;
 class HuffmanTree
 {
 public:
+    HuffmanTree() {}
     HuffmanTree(const std::vector<unsigned int> &weight);
     ~HuffmanTree();
 
-    std::vector<std::string> getCode();
+    inline HuffmanPtr getRoot() const
+    {
+        return root;
+    }
+
+    std::vector<std::string> getCode() const;
     void print();
 private:
     HuffmanNode* root;
-    
 };
 
 template<class T>

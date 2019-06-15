@@ -2,27 +2,50 @@
 #include "WeightMap.h"
 using namespace std;
 
-WeightMap::WeightMap(const string &filepath) : weights(256)
+typedef unique_ptr<FILE, decltype(std::fclose)*> file_ptr;
+
+void WeightMap::loadFile(const string &filepath)
 {
     // 每次从文件中读取一个字符，统计各字符出现的次数
-    FILE* fout = fopen(filepath.c_str(), "rb");
-    unsigned char ch;
-
-    while (!feof(fout))
+    FILE *fout;
+    fopen_s(&fout, filepath.c_str(), "rb");
+    file_ptr pfout(fout, fclose);
+    if (!(pfout.get()))
     {
-        ch = fgetc(fout);
-        ++weights[ch].first;
+        string errmsg = move(string("fopen ") + filepath + " failed");
+        perror(errmsg.c_str());
+        exit(-1);
     }
+    if (errno)
+    {
+        string errmsg = string("fopen ") + filepath + " failed";
+        perror(errmsg.c_str());
+        exit(-1);
+    }
+    unsigned char ch = fgetc(pfout.get());
 
-    fclose(fout);
+    while (!feof(pfout.get()))
+    {
+        ++weights[ch].first;
+        ch = fgetc(pfout.get());
+    }
 }
 
-vector<unsigned int> WeightMap::getBytesCount()
+void WeightMap::setBytesCount(const std::vector<unsigned int>& counts)
+{
+    for (unsigned i = 0; i < counts.size() && i < weights.size(); ++i)
+    {
+        weights[i].first = counts[i];
+    }
+}
+
+
+vector<unsigned int> WeightMap::getBytesCount() const
 {
     vector<unsigned int> res(256);
     for (unsigned i = 0; i < weights.size(); ++i)
     {
-        res.push_back(weights[i].first);
+        res[i] = weights[i].first;
     }
     return res;
 }
@@ -33,6 +56,16 @@ void WeightMap::setCodes(const vector<std::string> &codes)
     {
         weights[i].second = codes[i];
     }
+}
+
+std::vector<std::string> WeightMap::getCodes() const
+{
+    std::vector<std::string> res(256);
+    for (unsigned int i = 0; i < 256; i++)
+    {
+        res[i] = weights[i].second;
+    }
+    return res;
 }
 
 void WeightMap::print()

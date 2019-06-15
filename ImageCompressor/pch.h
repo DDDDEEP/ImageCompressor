@@ -19,5 +19,7 @@
 #include <queue>
 #include <cmath>
 #include <iomanip>
+#include <memory>
+#include <bitset>
 
 #endif //PCH_H

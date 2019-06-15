@@ -65,6 +65,8 @@ HuffmanTree::HuffmanTree(const vector<unsigned int>& weight)
 
 HuffmanTree::~HuffmanTree()
 {
+    if (root == nullptr)
+        return;
     queue<HuffmanPtr> queue;
     queue.push(root);
     while (queue.size() != 0)
@@ -81,7 +83,7 @@ HuffmanTree::~HuffmanTree()
     }
 }
 
-vector<string> HuffmanTree::getCode()
+vector<string> HuffmanTree::getCode() const
 {
     std::vector<std::string> res(256);
     queue<HuffmanPtr> queue;
@@ -102,6 +104,7 @@ vector<string> HuffmanTree::getCode()
         }
         queue.pop();
     }
+    
     return res;
 }
 
