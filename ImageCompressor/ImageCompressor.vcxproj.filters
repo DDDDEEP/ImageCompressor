@@ -21,10 +21,13 @@
     <ClInclude Include="HuffmanTree.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="WeightMap.h">
+    <ClInclude Include="ImageCompressor.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ImageCompressor.h">
+    <ClInclude Include="BytesMap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="toolkit.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -38,10 +41,13 @@
     <ClCompile Include="HuffmanTree.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="WeightMap.cpp">
+    <ClCompile Include="ImageCompressor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ImageCompressor.cpp">
+    <ClCompile Include="toolkit.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BytesMap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

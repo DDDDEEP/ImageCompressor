@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "BytesMap.h"
 #include "HuffmanTree.h"
 using namespace std;
 
@@ -7,66 +8,63 @@ bool HuffmanNode::isLeaf()
     return left == nullptr && right == nullptr;
 }
 
-HuffmanTree::HuffmanTree(const vector<unsigned int>& weight)
+HuffmanTree::HuffmanTree(const vector<unsigned int> &bytesCount)
 {
-    vector<HuffmanPtr> node_list;
-    // 创建叶子结点列表
-    for (unsigned int i = 0 ; i < weight.size(); ++i)
+    //创建叶子列表
+    vector<HuffmanPtr> nodeList;
+    for (unsigned int i = 0 ; i < bytesCount.size(); ++i)
     {
-        if (weight[i] != 0)
+        if (bytesCount[i] != 0)
         {
             HuffmanPtr node = new HuffmanNode();
-            node->weight = weight[i];
+            node->val = bytesCount[i];
             node->byte = i;
-            node_list.push_back(node);
+            nodeList.push_back(node);
         }
     }
 
-    // 降序排序
-    sort(node_list.begin(), node_list.end(),
+    //降序排序
+    sort(nodeList.begin(), nodeList.end(),
         [](const HuffmanPtr &lhs, const HuffmanPtr &rhs)
     {
-        return lhs->weight > rhs->weight;
+        return lhs->val > rhs->val;
     });
 
-    //// 打印
-    //for (auto i : node_list)
-    //{
-    //    cout << i->weight << endl;
-    //}
 
-    // 递归合并叶子结点
-    while (node_list.size() != 1)
+    //从后往前，递归合并叶子结点
+    while (nodeList.size() != 1)
     {
+        //创建新内结点
         HuffmanPtr node = new HuffmanNode();
-        node->left = node_list[node_list.size() - 2];
-        node->right = node_list.back();
+        node->left = nodeList[nodeList.size() - 2];
+        node->right = nodeList.back();
         node->left->parent = node->right->parent = node;
-        node->weight = node->left->weight + node->right->weight;
+        node->val = node->left->val + node->right->val;
 
-        node_list.pop_back();
-        node_list.pop_back();
+        nodeList.pop_back();
+        nodeList.pop_back();
 
+        //将新的内结点插入到降序排序的列表中
         vector<HuffmanPtr>::iterator pos =
-            lower_bound(node_list.begin(), node_list.end(), node,
+            lower_bound(nodeList.begin(), nodeList.end(), node,
             [](const HuffmanPtr &lhs, const HuffmanPtr &rhs)
         {
-            return lhs->weight >= rhs->weight;
+            return lhs->val >= rhs->val;
         });
-        if (pos == node_list.end())
-            node_list.push_back(node);
+        if (pos == nodeList.end())
+            nodeList.push_back(node);
         else
-            node_list.insert(pos + 1, node);
-
+            nodeList.insert(pos + 1, node);
     }
 
-    root = node_list.front();
+    root = nodeList.front();
 }
 
 HuffmanTree::~HuffmanTree()
 {
     if (root == nullptr)
         return;
+
     queue<HuffmanPtr> queue;
     queue.push(root);
     while (queue.size() != 0)
@@ -83,9 +81,9 @@ HuffmanTree::~HuffmanTree()
     }
 }
 
-vector<string> HuffmanTree::getCode() const
+vector<string> HuffmanTree::getCodes() const
 {
-    std::vector<std::string> res(256);
+    vector<string> res(BYTE_TYPES);
     queue<HuffmanPtr> queue;
     queue.push(root);
     while (queue.size() != 0)
@@ -104,15 +102,5 @@ vector<string> HuffmanTree::getCode() const
         }
         queue.pop();
     }
-    
     return res;
 }
-
-void HuffmanTree::print()
-{
-    TreePrinter<HuffmanNode> tpr(root);
-    tpr.print("", root, false);
-}
-
-
-

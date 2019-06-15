@@ -11,4 +11,5 @@ int main()
     ic.compress(filepath);
     ic.decompress(filepath);
     //ic.printData(filepath, 10);
+    ic.printInfo(filepath);
 }

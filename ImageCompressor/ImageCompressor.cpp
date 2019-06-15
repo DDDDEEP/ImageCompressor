@@ -1,13 +1,13 @@
 #include "pch.h"
-#include "WeightMap.h"
+#include "toolkit.h"
+#include "BytesMap.h"
 #include "HuffmanTree.h"
 #include "ImageCompressor.h"
 using namespace std;
 
-typedef unique_ptr<FILE, decltype(std::fclose)*> file_ptr;
 
 ImageCompressor::ImageCompressor() :
-    map(make_unique<WeightMap>()),
+    map(make_unique<BytesMap>()),
     tree(make_unique<HuffmanTree>())
 {
 }
@@ -16,39 +16,32 @@ ImageCompressor::~ImageCompressor()
 {
 }
 
-void ImageCompressor::compress(const string &filepath)
+bool ImageCompressor::compress(const string &filepath)
 {
+    //读取文件，生成字节表和哈夫曼树
     map->loadFile(filepath);
     tree = make_unique<HuffmanTree>(map->getBytesCount());
-    map->setCodes(tree->getCode());
+    map->setCodes(tree->getCodes());
 
-    FILE* fin;
+    //打开文件流
     string compressPath = move(getCompressPath(filepath));
-    fopen_s(&fin, compressPath.c_str(), "wb");
-    file_ptr pfin(fin, fclose);
-    if (!(pfin.get()))
+    file_ptr fcom(compressPath.c_str(), "wb"),
+        fsrc(filepath.c_str(), "rb");
+    if (!FilePtrIsOpened(fcom, compressPath.c_str())
+        || !FilePtrIsOpened(fsrc, filepath.c_str()))
     {
-        string errmsg = move(string("fopen ") + compressPath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
-    }
-    file_ptr fout(fopen(filepath.c_str(), "rb"), fclose);
-    if (!(fout.get()))
-    {
-        string errmsg = move(string("fopen ") + filepath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
+        return false;
     }
     
+    string code;
     unsigned int pos = 0;
     unsigned char newByte = 0;
-    unsigned char rawByte = fgetc(fout.get());
+    unsigned char srcByte = fgetc(fsrc.get());
     vector<string> codes = std::move(map->getCodes());
-
-    while (!feof(fout.get()))
+    while (!feof(fsrc.get()))
     {
-        //将字符转为二进制位，满8位就写入
-        string code = codes[static_cast<unsigned int>(rawByte)];
+        //找到源字节对应的新编码，逐位写入新字节中，新字节满8位就写入
+        code = codes[static_cast<unsigned int>(srcByte)];
         for (size_t i = 0; i < code.size(); ++i)
         {
             newByte <<= 1;
@@ -57,69 +50,67 @@ void ImageCompressor::compress(const string &filepath)
             ++pos;
             if (pos == 8)
             {
-                fputc(newByte, pfin.get());
+                fputc(newByte, fcom.get());
                 pos = 0;
                 newByte = 0;
             }
         }
-        rawByte = fgetc(fout.get());
+        //读取新的源字节
+        srcByte = fgetc(fsrc.get());
     }
 
-    if (pos)//pos==0，说明刚好存完8位；pos!=0，说明还有多余的位
+    //若pos==0，说明最后写入的编码片段刚好为8位
+    //若pos!=0，则需要为最后写入的编码片段补到8位
+    if (pos)
     {
         newByte <<= (8 - pos);
-        fputc(newByte, pfin.get());
+        fputc(newByte, fcom.get());
     }
+
+    //保存字节列表
     saveMap(getMapPath(filepath));
+
+    cout << "Compress File Created" << endl;
+    return true;
 }
 
-void ImageCompressor::decompress(const string &filepath)
+bool ImageCompressor::decompress(const string &filepath)
 {
+    //读取文件，生成字节表和哈夫曼树
     readMap(getMapPath(filepath));
     tree = make_unique<HuffmanTree>(map->getBytesCount());
-    tree->getCode();
-    map->setCodes(tree->getCode());
-    //压缩文件
-    string decompressPath = getDecompressPath(filepath);
-    string compressPath = getCompressPath(filepath);
+    map->setCodes(tree->getCodes());
 
-    FILE *fin, *fout;
-    fopen_s(&fin, decompressPath.c_str(), "wb");
-    fopen_s(&fout, compressPath.c_str(), "rb");
-    file_ptr pfin(fin, fclose);
-    file_ptr pfout(fout, std::fclose);
-    if (!(pfin.get()))
+
+    //打开文件流
+    string decompressPath = getDecompressPath(filepath),
+        compressPath = getCompressPath(filepath);
+    file_ptr fdecom(decompressPath.c_str(), "wb"),
+        fcom(compressPath.c_str(), "rb");
+    if (!FilePtrIsOpened(fdecom, decompressPath.c_str())
+        || !FilePtrIsOpened(fcom, compressPath.c_str()))
     {
-        string errmsg = move(string("fopen ") + decompressPath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
-    }
-    if (!(pfout.get()))
-    {
-        string errmsg = move(string("fopen ") + compressPath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
+        return false;
     }
 
-    tree->print();
+    HuffmanPtr root = tree->getRoot(),
+        cur = root;
     unsigned int pos = 0;
-    unsigned char ch = fgetc(pfout.get());
-    HuffmanPtr root = tree->getRoot();
-    unsigned int charCount = root->weight;
-    HuffmanPtr cur = root;
-    int n = 0;
-    while (charCount && !feof(pfout.get()))
+    unsigned int charCount = root->val;
+
+    unsigned char comByte = fgetc(fcom.get());
+    while (charCount && !feof(fcom.get()))
     {
-        //到叶子节点说明找到字符，放入解压文件
+        //到叶子节点说明找到编码对应的源字节，写入解压文件中
         if (cur->isLeaf())
         {
-            fputc(cur->byte, pfin.get());
+            fputc(cur->byte, fdecom.get());
             --charCount;
             cur = root;
         }
         else
         {
-            if (ch & (1 << (7 - pos)))
+            if (comByte & (1 << (7 - pos)))
             {
                 cur = cur->right;
             }
@@ -128,68 +119,56 @@ void ImageCompressor::decompress(const string &filepath)
                 cur = cur->left;
             }
             ++pos;
-            //当pos<0时，说明此时已经解压完一个字节，开始解压下一个字节
             if (pos == 8)
             {
                 pos = 0;
-                ch = fgetc(pfout.get());
-
+                comByte = fgetc(fcom.get());
             }
         }
-
     }
+
+    cout << "Decompress File Created" << endl;
+    return true;
 }
 
-void ImageCompressor::printData(const std::string & filepath, unsigned int count)
+void ImageCompressor::printData(const std::string &filepath, unsigned int count)
 {
+    //读取文件，生成字节表和哈夫曼树
     readMap(getMapPath(filepath));
     tree = make_unique<HuffmanTree>(map->getBytesCount());
-    map->setCodes(tree->getCode());
+    map->setCodes(tree->getCodes());
 
-    FILE *fsource, *fcompress, *fdecompress;
+    //打开文件流
     string compressPath = move(getCompressPath(filepath));
     string decompressPath = move(getDecompressPath(filepath));
-    fopen_s(&fsource, filepath.c_str(), "rb");
-    fopen_s(&fcompress, compressPath.c_str(), "rb");
-    fopen_s(&fdecompress, decompressPath.c_str(), "rb");
-    file_ptr pfsource(fsource, fclose);
-    file_ptr pfcompress(fcompress, std::fclose);
-    file_ptr pfdecompress(fdecompress, std::fclose);
-    if (!(pfsource.get()))
+    file_ptr fsrc(filepath.c_str(), "rb"),
+        fcom(compressPath.c_str(), "rb"),
+        fdecom(decompressPath.c_str(), "rb");
+    if (!FilePtrIsOpened(fsrc, filepath.c_str())
+        || !FilePtrIsOpened(fcom, compressPath.c_str())
+        || !FilePtrIsOpened(fdecom, decompressPath.c_str()))
     {
-        string errmsg = move(string("fopen ") + filepath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
-    }
-    if (!(pfcompress.get()))
-    {
-        string errmsg = move(string("fopen ") + compressPath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
-    }
-    if (!(pfdecompress.get()))
-    {
-        string errmsg = move(string("fopen ") + decompressPath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
+        return;
     }
 
-    unsigned int index = 0;
-    unsigned char ch = fgetc(pfsource.get());
     cout << "source     : ";
-    while (!feof(pfsource.get()) && ++index <= count)
+    unsigned int index = 0;
+    unsigned char ch = fgetc(fsrc.get());
+    while (!feof(fsrc.get()) && ++index <= count)
     {
         cout << bitset<8>(ch);
         printf("(%3d) ", ch);
-        ch = fgetc(pfsource.get());
+        ch = fgetc(fsrc.get());
     }
-    index = 0;
     cout << endl;
+
     cout << "compress   : ";
-    ch = fgetc(pfcompress.get());
+    index = 0;
     unsigned int pos = 0;
-    HuffmanPtr root = tree->getRoot(), cur = root;
-    while (!feof(pfcompress.get()) && index <= count)
+    HuffmanPtr root = tree->getRoot(),
+        cur = root;
+    ch = fgetc(fcom.get());
+    while (!feof(fcom.get()) && index <= count)
     {
         if (cur->isLeaf())
         {
@@ -213,67 +192,86 @@ void ImageCompressor::printData(const std::string & filepath, unsigned int count
             if (pos == 8)
             {
                 pos = 0;
-                ch = fgetc(pfcompress.get());
+                ch = fgetc(fcom.get());
             }
         }
     }
-    index = 0;
     cout << endl;
+
     cout << "decompress : ";
-    ch = fgetc(pfdecompress.get());
-    while (!feof(pfdecompress.get()) && ++index <= count)
+    index = 0;
+    ch = fgetc(fdecom.get());
+    while (!feof(fdecom.get()) && ++index <= count)
     {
         cout << bitset<8>(ch);
         printf("(%3d) ", ch);
-        ch = fgetc(pfdecompress.get());
+        ch = fgetc(fdecom.get());
     }
-    index = 0;
     cout << endl;
-
 }
 
-std::string ImageCompressor::getMapPath(const std::string & filepath)
+void ImageCompressor::printInfo(const string &filepath)
+{
+    //打开文件流
+    string compressPath = move(getCompressPath(filepath));
+    string decompressPath = move(getDecompressPath(filepath));
+    file_ptr fsrc(filepath.c_str(), "rb"),
+        fcom(compressPath.c_str(), "rb"),
+        fdecom(decompressPath.c_str(), "rb");
+    if (!FilePtrIsOpened(fsrc, filepath.c_str())
+        || !FilePtrIsOpened(fcom, compressPath.c_str())
+        || !FilePtrIsOpened(fdecom, decompressPath.c_str()))
+    {
+        return;
+    }
+
+    fseek(fsrc.get(), 0L, SEEK_END);
+    fseek(fcom.get(), 0L, SEEK_END);
+    fseek(fdecom.get(), 0L, SEEK_END);
+
+    cout << "source     : " << ftell(fsrc.get()) << endl;
+    cout << "compress   : " << ftell(fcom.get()) << endl;
+    cout << "decompress : " << ftell(fdecom.get()) << endl;
+}
+
+string ImageCompressor::getMapPath(const string &filepath)
 {
     return filepath + ".map";
 }
 
-std::string ImageCompressor::getCompressPath(const std::string & filepath)
+string ImageCompressor::getCompressPath(const string &filepath)
 {
     return filepath + ".compress";
 }
 
-std::string ImageCompressor::getDecompressPath(const std::string & filepath)
+string ImageCompressor::getDecompressPath(const string &filepath)
 {
     size_t deStrPos = filepath.rfind('\\');
     string decompressPath = filepath;
-    decompressPath.insert(deStrPos + 1, "compress_");
+    decompressPath.insert(deStrPos + 1, "decompress_");
     return decompressPath;
 }
 
-void ImageCompressor::saveMap(const string &mappath)
+bool ImageCompressor::saveMap(const string &mappath)
 {
-    vector<unsigned int> mapData = std::move(map->getBytesCount());
-    FILE *fin;
-    fopen_s(&fin, mappath.c_str(), "wb");
-    file_ptr pfin(fin, fclose);
-    if (!(pfin.get()))
-    {
-        string errmsg = move(string("fopen ") + mappath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
-    }
+    vector<unsigned int> mapData = move(map->getBytesCount());
+
+    //打开文件流
+    file_ptr fmap(mappath.c_str(), "wb");
+    if (!FilePtrIsOpened(fmap, mappath.c_str()))
+        return false;
 
     string line;
     char buff[128];
-
-    for (size_t i = 0; i < 256; ++i)
+    for (size_t i = 0; i < mapData.size(); ++i)
     {
+        //对每个出现次数不为0的字节，对应行数据：“[字节],[出现次数]\n”
         if (mapData[i])
         {
             if (i == 0)
             {
                 unsigned char zero = 0;
-                fwrite(&zero, 1, 1, pfin.get());
+                fputc(zero, fmap.get());
             }
             else
             {
@@ -282,59 +280,63 @@ void ImageCompressor::saveMap(const string &mappath)
             line += ',';
             line += _itoa(mapData[i], buff, 10);
             line += '\n';
-            fputs(line.c_str(), pfin.get());
+            fputs(line.c_str(), fmap.get());
             line.clear();
         }
     }
+    cout << "Map File Created" << endl;
+    return true;
 }
 
-void ImageCompressor::readMap(const string &filepath)
+bool ImageCompressor::readMap(const string &mappath)
 {
+    //打开文件流
+    file_ptr fmap(mappath.c_str(), "rb");
+    if (!FilePtrIsOpened(fmap, mappath.c_str()))
+        return false;
 
-    FILE *fout;
-    fopen_s(&fout, filepath.c_str(), "rb");
-    file_ptr pfout(fout, fclose);
-    if (!(pfout.get()))
-    {
-        string errmsg = move(string("fopen ") + filepath + " failed");
-        perror(errmsg.c_str());
-        exit(-1);
-    }
     string line;
     unsigned char ch = 0;
-    unsigned char byte = 0;
+    unsigned char byteType = 0;
     bool isSpecialByte = false;
-    vector<unsigned int> counts(256);
+    vector<unsigned int> counts(BYTE_TYPES);
     while (true)
     {
-        ch = fgetc(pfout.get());
-        if (feof(pfout.get()))
+        ch = fgetc(fmap.get());
+        if (feof(fmap.get()))
             break;
+
+        //零字符和换行字符需要特殊处理
         if (ch == '\0' || ch == '\n')
         {
             isSpecialByte = true;
-            byte = ch;
-            ch = fgetc(pfout.get());
+            byteType = ch;
+            ch = fgetc(fmap.get());
         }
-        while (!feof(pfout.get()) && ch != '\n')
+
+        //读取一行
+        while (!feof(fmap.get()) && ch != '\n')
         {
             line += ch;
-            ch = fgetc(pfout.get());
+            ch = fgetc(fmap.get());
         }
+
         if (!line.empty())
         {
             if (isSpecialByte)
             {
-                counts[static_cast<unsigned int>(byte)] = atoi(line.substr(1).c_str());
+                counts[static_cast<unsigned int>(byteType)] = atoi(line.substr(1).c_str());
             }
             else
             {
-                byte = line[0];
-                counts[static_cast<unsigned int>(byte)] = atoi(line.substr(2).c_str());
+                byteType = line[0];
+                counts[static_cast<unsigned int>(byteType)] = atoi(line.substr(2).c_str());
             }
             line.clear();
         }
         isSpecialByte = false;
     }
     map->setBytesCount(counts);
+
+    return true;
 }

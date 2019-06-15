@@ -1,12 +1,13 @@
 #pragma once
 #include "pch.h"
+#include "toolkit.h"
 
 struct HuffmanNode
 {
     bool isLeaf();
-    unsigned int weight;
-    unsigned char byte;
-    std::string code;
+    unsigned int val;   //权重值
+    unsigned char byte; //对于叶子，其对应的字节种类
+    std::string code;   //编码
     HuffmanNode* parent = nullptr;
     HuffmanNode* left = nullptr;
     HuffmanNode* right = nullptr;
@@ -17,38 +18,25 @@ class HuffmanTree
 {
 public:
     HuffmanTree() {}
-    HuffmanTree(const std::vector<unsigned int> &weight);
     ~HuffmanTree();
+
+    /* 根据各种类字节的出现次数，构建哈夫曼树 */
+    HuffmanTree(const std::vector<unsigned int> &bytesCount);
+
+    /* 获取各种类字节的编码值 */
+    std::vector<std::string> getCodes() const;
 
     inline HuffmanPtr getRoot() const
     {
         return root;
     }
-
-    std::vector<std::string> getCode() const;
-    void print();
-private:
-    HuffmanNode* root;
-};
-
-template<class T>
-class TreePrinter
-{
-public:
-    TreePrinter(T* root) : root(root)
-    {}
-    void print(std::string prefix, T* node, bool isLeft);
-private:
-    T* root;
-};
-
-template<class T>
-inline void TreePrinter<T>::print(std::string prefix, T* node, bool isLeft)
-{
-    if (node != nullptr)
+    inline void print()
     {
-        std::cout << prefix << (isLeft ? "|-- " : "\\-- ") << node->weight << std::endl;
-        print(prefix + (isLeft ? "|   " : "    "), node->left, true);
-        print(prefix + (isLeft ? "|   " : "    "), node->right, false);
+        PrintTree<HuffmanNode>("", root, true);
     }
-}
+
+private:
+    HuffmanPtr root;
+};
+
+
