@@ -70,7 +70,7 @@ bool ImageCompressor::compress(const string &filepath)
     //保存字节列表
     saveMap(getMapPath(filepath));
 
-    cout << "Compress File Created" << endl;
+    printf("%- 25s %- 100s %d\n", "Compress File Created: ", compressPath.c_str(), ftell(fcom.get()));
     return true;
 }
 
@@ -127,7 +127,7 @@ bool ImageCompressor::decompress(const string &filepath)
         }
     }
 
-    cout << "Decompress File Created" << endl;
+    printf("%- 25s %- 100s %d\n", "Decompress File Created: ", decompressPath.c_str(), ftell(fdecom.get()));
     return true;
 }
 
@@ -284,7 +284,8 @@ bool ImageCompressor::saveMap(const string &mappath)
             line.clear();
         }
     }
-    cout << "Map File Created" << endl;
+
+    printf("%- 25s %- 100s %d\n", "Map File Created: ", mappath.c_str(), ftell(fmap.get()));
     return true;
 }
 
